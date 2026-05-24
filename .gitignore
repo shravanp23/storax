@@ -1,0 +1,17 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/.env
+*.pyc
+
+# Node
+frontend/storax/node_modules/
+frontend/storax/build/
+
+# Environment
+.env
+*.env
+
+# Docker
+postgres_data/
+minio_data/
