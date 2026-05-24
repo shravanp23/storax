@@ -47,7 +47,7 @@ const Files: React.FC = () => {
   };
 
   const downloadFile = (key: string) => {
-    window.open(`http://localhost:8000/api/storage/download/${key}?token=${localStorage.getItem('storax_token')}`);
+    window.open(`https://storax-production.up.railway.app/api/storage/download/${key}?token=${localStorage.getItem('storax_token')}`);
   };
 
   return (

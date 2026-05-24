@@ -26,7 +26,7 @@ const Billing: React.FC = () => {
   const downloadPDF = async (id: number) => {
     try {
         const token = localStorage.getItem('storax_token');
-        const response = await fetch(`http://localhost:8000/api/billing/invoice/${id}/pdf`, {
+        const response = await fetch(`https://storax-production.up.railway.app/api/billing/invoice/${id}/pdf`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const blob = await response.blob();
