@@ -23,6 +23,7 @@ app.add_middleware(
     "http://localhost:3001",
     "http://localhost:3002",
     "https://storax-5vt3.vercel.app",
+    "https://storax.onrender.com",
 ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -34,6 +35,16 @@ app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 
+@app.get("/")
+def root():
+    return {
+        "message": "StoraX API - Production-grade Multi-tenant Object Storage & Billing Engine",
+        "version": "1.0.0",
+        "docs": "/api/docs",
+        "redoc": "/api/redoc",
+        "health": "/api/health"
+    }
+
 @app.get("/api/health")
 def health_check():
     return {
@@ -41,3 +52,10 @@ def health_check():
         "service": "StoraX API",
         "version": "1.0.0"
     }
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

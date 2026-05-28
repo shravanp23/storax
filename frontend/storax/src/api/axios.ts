@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://storax-production.up.railway.app',
+  baseURL: 'https://storax.onrender.com',
 });
 
 api.interceptors.request.use((config) => {
