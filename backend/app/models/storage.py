@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import enum
@@ -34,7 +34,9 @@ class UsageLog(Base):
     timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="usage")
-    class SharedLink(Base):
+
+
+class SharedLink(Base):
     __tablename__ = "shared_links"
 
     id = Column(Integer, primary_key=True, index=True)

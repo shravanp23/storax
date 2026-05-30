@@ -1,16 +1,14 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone, timedelta
 from app.database import get_db
 from app.models.user import User
-from app.models.storage import StorageObject, UsageLog, ActionType
+from app.models.storage import StorageObject, UsageLog, ActionType, SharedLink
 from app.services.auth_service import get_current_user
 from app.services import minio_service
-from app.models.storage import SharedLink
-from datetime import timedelta
-from datetime import datetime, timezone, timedelta
-import secrets
 import uuid
+import secrets
 
 router = APIRouter()
 
@@ -38,6 +36,7 @@ def upload_file(
     return {"message": "Uploaded successfully", "object_key": object_key,
             "filename": file.filename, "size_bytes": size}
 
+
 @router.get("/files")
 def list_files(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     db.add(UsageLog(user_id=current_user.id, action=ActionType.LIST, object_key="", bytes_transferred=0))
@@ -46,6 +45,7 @@ def list_files(db: Session = Depends(get_db), current_user: User = Depends(get_c
     return [{"id": f.id, "filename": f.object_name, "object_key": f.object_key,
              "size_bytes": f.size_bytes, "content_type": f.content_type,
              "uploaded_at": f.uploaded_at} for f in files]
+
 
 @router.get("/download/{object_key}")
 def download_file(object_key: str, db: Session = Depends(get_db),
@@ -63,6 +63,7 @@ def download_file(object_key: str, db: Session = Depends(get_db),
     return StreamingResponse(body, media_type=content_type,
                              headers={"Content-Disposition": f"attachment; filename={obj.object_name}"})
 
+
 @router.delete("/delete/{object_key}")
 def delete_file(object_key: str, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
@@ -78,6 +79,7 @@ def delete_file(object_key: str, db: Session = Depends(get_db),
                     object_key=object_key, bytes_transferred=0))
     db.commit()
     return {"message": "File deleted successfully"}
+
 
 @router.get("/usage")
 def get_usage(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -108,7 +110,6 @@ def create_share_link(
     if not obj:
         raise HTTPException(status_code=404, detail="File not found")
 
-    # Delete old share link for this file if exists
     db.query(SharedLink).filter(
         SharedLink.object_key == object_key,
         SharedLink.user_id == current_user.id
@@ -133,6 +134,7 @@ def create_share_link(
         "filename": obj.object_name,
         "hours": hours
     }
+
 
 @router.get("/shared/{token}")
 def access_shared_file(token: str, db: Session = Depends(get_db)):
@@ -160,6 +162,7 @@ def access_shared_file(token: str, db: Session = Depends(get_db)):
         headers={"Content-Disposition": f"attachment; filename={link.filename}"}
     )
 
+
 @router.get("/my-shares")
 def get_my_shares(
     db: Session = Depends(get_db),
@@ -178,6 +181,7 @@ def get_my_shares(
         "expires_at": l.expires_at,
         "is_expired": now > l.expires_at.replace(tzinfo=timezone.utc)
     } for l in links]
+
 
 @router.delete("/share/{object_key}")
 def delete_share_link(
