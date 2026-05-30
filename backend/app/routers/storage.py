@@ -8,6 +8,7 @@ from app.services.auth_service import get_current_user
 from app.services import minio_service
 from app.models.storage import SharedLink
 from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 import secrets
 import uuid
 
@@ -91,7 +92,9 @@ def get_usage(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         "total_gb": round(total_bytes / (1024**3), 6),
         "total_requests": total_requests
     }
-    @router.post("/share/{object_key}")
+
+
+@router.post("/share/{object_key}")
 def create_share_link(
     object_key: str,
     hours: int = 24,
