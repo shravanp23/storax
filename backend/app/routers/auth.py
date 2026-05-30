@@ -31,19 +31,7 @@ def create_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 def create_minio_bucket(bucket_name: str):
-    try:
-        import boto3
-        from botocore.client import Config
-        s3 = boto3.client(
-            "s3",
-            endpoint_url=f"http://{settings.MINIO_ENDPOINT}",
-            aws_access_key_id=settings.MINIO_ACCESS_KEY,
-            aws_secret_access_key=settings.MINIO_SECRET_KEY,
-            config=Config(signature_version="s3v4")
-        )
-        s3.create_bucket(Bucket=bucket_name)
-    except Exception as e:
-        print(f"Bucket creation warning: {e}")
+    pass
 
 @router.post("/register", status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
