@@ -6,6 +6,9 @@ from app.models.user import User
 from app.models.storage import StorageObject, UsageLog, ActionType
 from app.services.auth_service import get_current_user
 from app.services import minio_service
+from app.models.storage import SharedLink
+from datetime import timedelta
+import secrets
 import uuid
 
 router = APIRouter()
@@ -88,3 +91,100 @@ def get_usage(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         "total_gb": round(total_bytes / (1024**3), 6),
         "total_requests": total_requests
     }
+    @router.post("/share/{object_key}")
+def create_share_link(
+    object_key: str,
+    hours: int = 24,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    obj = db.query(StorageObject).filter(
+        StorageObject.object_key == object_key,
+        StorageObject.user_id == current_user.id
+    ).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Delete old share link for this file if exists
+    db.query(SharedLink).filter(
+        SharedLink.object_key == object_key,
+        SharedLink.user_id == current_user.id
+    ).delete()
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=hours)
+
+    link = SharedLink(
+        user_id=current_user.id,
+        object_key=object_key,
+        filename=obj.object_name,
+        token=token,
+        expires_at=expires_at
+    )
+    db.add(link)
+    db.commit()
+
+    return {
+        "share_url": f"https://storax.onrender.com/api/storage/shared/{token}",
+        "expires_at": expires_at,
+        "filename": obj.object_name,
+        "hours": hours
+    }
+
+@router.get("/shared/{token}")
+def access_shared_file(token: str, db: Session = Depends(get_db)):
+    link = db.query(SharedLink).filter(
+        SharedLink.token == token,
+        SharedLink.is_active == True
+    ).first()
+
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found or expired")
+
+    if datetime.now(timezone.utc) > link.expires_at.replace(tzinfo=timezone.utc):
+        link.is_active = False
+        db.commit()
+        raise HTTPException(status_code=410, detail="Link has expired")
+
+    user = db.query(User).filter(User.id == link.user_id).first()
+    body, size, content_type = minio_service.download_file(
+        user.bucket_name, link.object_key
+    )
+
+    return StreamingResponse(
+        body,
+        media_type=content_type,
+        headers={"Content-Disposition": f"attachment; filename={link.filename}"}
+    )
+
+@router.get("/my-shares")
+def get_my_shares(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    links = db.query(SharedLink).filter(
+        SharedLink.user_id == current_user.id,
+        SharedLink.is_active == True
+    ).all()
+    now = datetime.now(timezone.utc)
+    return [{
+        "id": l.id,
+        "filename": l.filename,
+        "object_key": l.object_key,
+        "share_url": f"https://storax.onrender.com/api/storage/shared/{l.token}",
+        "expires_at": l.expires_at,
+        "is_expired": now > l.expires_at.replace(tzinfo=timezone.utc)
+    } for l in links]
+
+@router.delete("/share/{object_key}")
+def delete_share_link(
+    object_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    db.query(SharedLink).filter(
+        SharedLink.object_key == object_key,
+        SharedLink.user_id == current_user.id
+    ).delete()
+    db.commit()
+    return {"message": "Share link deleted"}
