@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = True
     MINIO_BUCKET: str = "storax-files"
 
+    SENDGRID_API_KEY: str = ""
+    FROM_EMAIL: str = "onboarding@resend.dev"
+
     PRICING_STORAGE_PER_GB: float = 0.02
     PRICING_REQUESTS_PER_1000: float = 0.01
     PRICING_BANDWIDTH_PER_GB: float = 0.09
