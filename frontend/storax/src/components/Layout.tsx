@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, FolderOpen, CreditCard,
-  Shield, LogOut, Menu, X, Zap
+  Shield, LogOut, Menu, X, Zap, Key, ShieldAlert
 } from 'lucide-react';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -13,11 +13,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const navItems = [
-    { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/files',     icon: FolderOpen,      label: 'My Files'  },
-    { path: '/billing',   icon: CreditCard,      label: 'Billing'   },
-    ...(user?.is_admin ? [{ path: '/admin', icon: Shield, label: 'Admin' }] : []),
-  ];
+    { path: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+    { path: '/files',      icon: FolderOpen,      label: 'My Files'   },
+    { path: '/billing',    icon: CreditCard,      label: 'Billing'    },
+    { path: '/api-keys',   icon: Key,             label: 'API Keys'   },
+    { path: '/audit-logs', icon: Shield,          label: 'Audit Logs' },
+    ...(user?.is_admin ? [{ path: '/admin', icon: ShieldAlert, label: 'Admin' }] : []),
+];
 
   const handleLogout = () => { logout(); navigate('/'); };
 

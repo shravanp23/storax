@@ -35,7 +35,6 @@ class UsageLog(Base):
 
     user = relationship("User", back_populates="usage")
 
-
 class SharedLink(Base):
     __tablename__ = "shared_links"
 
@@ -47,3 +46,18 @@ class SharedLink(Base):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = Column(Boolean, default=True)
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    action = Column(String, nullable=False)
+    resource = Column(String, nullable=True)
+    details = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    status = Column(String, default="success")
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="audit_logs")

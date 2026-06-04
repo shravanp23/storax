@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
-from app.routers import auth, storage, billing, admin
+from app.routers import auth, storage, billing, admin, apikeys, auditlogs
 from app.models import user, storage as storage_model, billing as billing_model
 
 Base.metadata.create_all(bind=engine)
@@ -34,6 +34,8 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(apikeys.router, prefix="/api/keys", tags=["API Keys"])
+app.include_router(auditlogs.router, prefix="/api/audit", tags=["Audit Logs"])
 
 @app.get("/api/health")
 def health_check():
@@ -42,4 +44,3 @@ def health_check():
         "service": "StoraX API",
         "version": "1.0.0"
     }
-

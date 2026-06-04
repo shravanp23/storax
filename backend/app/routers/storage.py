@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.storage import StorageObject, UsageLog, ActionType, SharedLink
 from app.services.auth_service import get_current_user
 from app.services import minio_service
+from app.routers.auditlogs import log_action
 import uuid
 import secrets
 
@@ -33,6 +34,7 @@ def upload_file(
     db.add(UsageLog(user_id=current_user.id, action=ActionType.UPLOAD,
                     object_key=object_key, bytes_transferred=size))
     db.commit()
+    log_action(db, current_user.id, "FILE_UPLOAD", object_key, f"Uploaded: {file.filename} ({size} bytes)")
     return {"message": "Uploaded successfully", "object_key": object_key,
             "filename": file.filename, "size_bytes": size}
 
@@ -60,6 +62,8 @@ def download_file(object_key: str, db: Session = Depends(get_db),
     db.add(UsageLog(user_id=current_user.id, action=ActionType.DOWNLOAD,
                     object_key=object_key, bytes_transferred=size))
     db.commit()
+    log_action(db, current_user.id, "FILE_DOWNLOAD", object_key, f"Downloaded: {obj.object_name}")
+    log_action(db, current_user.id, "FILE_DOWNLOAD", object_key, f"Downloaded: {obj.object_name} ({size} bytes)")
     return StreamingResponse(body, media_type=content_type,
                              headers={"Content-Disposition": f"attachment; filename={obj.object_name}"})
 
@@ -78,6 +82,7 @@ def delete_file(object_key: str, db: Session = Depends(get_db),
     db.add(UsageLog(user_id=current_user.id, action=ActionType.DELETE,
                     object_key=object_key, bytes_transferred=0))
     db.commit()
+    log_action(db, current_user.id, "FILE_DELETE", object_key, f"Deleted: {obj.object_name}")
     return {"message": "File deleted successfully"}
 
 
@@ -127,6 +132,7 @@ def create_share_link(
     )
     db.add(link)
     db.commit()
+    log_action(db, current_user.id, "SHARE_LINK_CREATED", object_key, f"Share link created for: {obj.object_name}, expires: {expires_at}")
 
     return {
         "share_url": f"https://storax.onrender.com/api/storage/shared/{token}",

@@ -18,4 +18,20 @@ class User(Base):
     objects = relationship("StorageObject", back_populates="owner")
     usage = relationship("UsageLog", back_populates="user")
     invoices = relationship("Invoice", back_populates="user")
-    
+    api_keys = relationship("APIKey", back_populates="user")
+    audit_logs = relationship("AuditLog", back_populates="user")
+
+class APIKey(Base):
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, __import__('sqlalchemy').ForeignKey("users.id"))
+    name = Column(String, nullable=False)
+    key = Column(String, unique=True, nullable=False)
+    key_prefix = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    permissions = Column(String, default="read_write")
+    last_used = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", back_populates="api_keys")

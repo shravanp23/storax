@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.billing import Invoice
 from app.services.auth_service import get_current_user
 from app.services.billing_service import calculate_bill, generate_invoice
+from app.routers.auditlogs import log_action
 import io
 
 router = APIRouter()
@@ -22,6 +23,7 @@ def generate_bill(db: Session = Depends(get_db), current_user: User = Depends(ge
     now = datetime.now(timezone.utc)
     period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     invoice = generate_invoice(current_user.id, db, period_start, now)
+    log_action(db, current_user.id, "INVOICE_GENERATED", f"invoice_{invoice.id}", f"Invoice generated: ${invoice.total_amount}")
     return {"message": "Invoice generated", "invoice_id": invoice.id,
             "total_amount": invoice.total_amount}
 

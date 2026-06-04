@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import Files from './pages/Files';
 import Billing from './pages/Billing';
 import Admin from './pages/Admin';
+import APIKeys from './pages/APIKeys';
+import AuditLogs from './pages/AuditLogs';
 import Layout from './components/Layout';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -31,6 +33,8 @@ const App: React.FC = () => {
           <Route path="/files" element={<PrivateRoute><Layout><Files /></Layout></PrivateRoute>} />
           <Route path="/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><Layout><Admin /></Layout></PrivateRoute>} />
+          <Route path="/api-keys" element={<PrivateRoute><Layout><APIKeys /></Layout></PrivateRoute>} />
+          <Route path="/audit-logs" element={<PrivateRoute><Layout><AuditLogs /></Layout></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

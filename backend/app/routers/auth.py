@@ -51,8 +51,15 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     create_minio_bucket(bucket_name)
+    # Log registration
+    from app.routers.auditlogs import log_action
+    log_action(db, user.id, "USER_REGISTERED", "auth", f"New user registered: {user.email}")
 
     token = create_token({"sub": str(user.id), "email": user.email})
+
+    # Log login
+    log_action(db, user.id, "USER_LOGIN", "auth", f"User logged in: {user.email}")
+
     return {
         "access_token": token,
         "token_type": "bearer",
