@@ -36,16 +36,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         overflow: 'hidden'
       }}>
         {/* Logo */}
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '36px', height: '36px', borderRadius: '10px',
-            background: 'var(--gradient)', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', flexShrink: 0
-          }}>
-            <Zap size={18} color="white" />
-          </div>
-          {sidebarOpen && <span style={{ fontSize: '20px', fontWeight: '800', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>}
-        </div>
+        <img src="/storax-logo.png.png" alt="StoraX" style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover', flexShrink: 0 }} />
+      {sidebarOpen && <span style={{ fontSize: '20px', fontWeight: '800', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>}
 
         {/* Nav */}
         <nav style={{ flex: 1, padding: '16px 12px' }}>

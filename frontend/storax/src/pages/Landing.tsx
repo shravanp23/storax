@@ -61,14 +61,9 @@ const Landing: React.FC = () => {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <div style={{
-            width: '38px', height: '38px', borderRadius: '12px',
-            background: 'linear-gradient(135deg, #6C63FF, #FF6584)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '18px', boxShadow: '0 0 20px rgba(108,99,255,0.4)'
-          }}>⚡</div>
+          <img src="/storax-logo.png.png" alt="StoraX brand mark: rounded multicolored emblem with a stylized S next to the word StoraX; represents a modern secure cloud storage platform, clean tech-focused design, conveys trust and reliability" style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }} />
           <span style={{ fontSize: '22px', fontWeight: '800', background: 'linear-gradient(135deg, #6C63FF, #FF6584)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>
-        </div>
+</div>
 
         {/* Nav links */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '40px' }}>
