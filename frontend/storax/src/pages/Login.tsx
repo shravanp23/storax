@@ -35,7 +35,7 @@ const Login: React.FC = () => {
       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(108,99,255,0.1) 0%, transparent 70%)', pointerEvents: 'none' }} />
       <div className="card" style={{ width: '100%', maxWidth: '420px', padding: '48px' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <img src="/storax-logo.png" alt="StoraX" style={{ width: '56px', height: '56px', borderRadius: '16px', objectFit: 'cover', margin: '0 auto 16px', display: 'block' }} />
+          <span style={{ fontSize: '24px', fontWeight: '900', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>
           <h1 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px' }}>Welcome back</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Sign in to your StoraX account</p>
         </div>

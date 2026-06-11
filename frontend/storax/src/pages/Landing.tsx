@@ -5,6 +5,8 @@ const Landing: React.FC = () => {
   const navigate = useNavigate();
   const [scrollY, setScrollY] = useState(0);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  // control sidebar/logo visibility
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -61,8 +63,7 @@ const Landing: React.FC = () => {
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => navigate('/')}>
-          <img src="/storax-logo.png.png" alt="StoraX brand mark: rounded multicolored emblem with a stylized S next to the word StoraX; represents a modern secure cloud storage platform, clean tech-focused design, conveys trust and reliability" style={{ width: '36px', height: '36px', borderRadius: '10px', objectFit: 'cover' }} />
-          <span style={{ fontSize: '22px', fontWeight: '800', background: 'linear-gradient(135deg, #6C63FF, #FF6584)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>
+          {sidebarOpen && <span style={{ fontSize: '24px', fontWeight: '900', background: 'var(--gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>StoraX</span>}
 </div>
 
         {/* Nav links */}
