@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
@@ -18,17 +18,20 @@ def log_action(
     user_agent: str = None,
     status: str = "success"
 ):
-    log = AuditLog(
-        user_id=user_id,
-        action=action,
-        resource=resource,
-        details=details,
-        ip_address=ip_address,
-        user_agent=user_agent,
-        status=status
-    )
-    db.add(log)
-    db.commit()
+    try:
+        log = AuditLog(
+            user_id=user_id,
+            action=action,
+            resource=resource,
+            details=details,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            status=status
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        print(f"Audit log error: {e}")
 
 @router.get("/my-logs")
 def get_my_audit_logs(
@@ -37,7 +40,7 @@ def get_my_audit_logs(
 ):
     logs = db.query(AuditLog).filter(
         AuditLog.user_id == current_user.id
-    ).order_by(AuditLog.timestamp.desc()).limit(100).all()
+    ).order_by(AuditLog.timestamp.desc()).limit(50).all()
 
     return [{
         "id": l.id,
@@ -57,9 +60,13 @@ def get_all_audit_logs(
         AuditLog.timestamp.desc()
     ).limit(500).all()
 
+    users = {u.id: u for u in db.query(User).all()}
+
     return [{
         "id": l.id,
         "user_id": l.user_id,
+        "user_name": users.get(l.user_id, User()).full_name if l.user_id else "Unknown",
+        "user_email": users.get(l.user_id, User()).email if l.user_id else "Unknown",
         "action": l.action,
         "resource": l.resource,
         "details": l.details,

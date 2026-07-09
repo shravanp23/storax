@@ -17,8 +17,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { path: '/files',      icon: FolderOpen,      label: 'My Files'   },
     { path: '/billing',    icon: CreditCard,      label: 'Billing'    },
     { path: '/api-keys',   icon: Key,             label: 'API Keys'   },
-    { path: '/audit-logs', icon: Shield,          label: 'Audit Logs' },
-    ...(user?.is_admin ? [{ path: '/admin', icon: ShieldAlert, label: 'Admin' }] : []),
+    ...(user?.is_admin ? [
+      { path: '/audit-logs', icon: Shield,      label: 'Audit Logs' },
+      { path: '/admin',      icon: ShieldAlert, label: 'Admin'      },
+    ] : []),
 ];
 
   const handleLogout = () => { logout(); navigate('/'); };
