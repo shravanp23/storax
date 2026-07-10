@@ -8,8 +8,10 @@ from app.models.storage import StorageObject, UsageLog, ActionType, SharedLink
 from app.services.auth_service import get_current_user
 from app.services import minio_service
 from app.routers.auditlogs import log_action
+from app.services.compression_service import get_compression_recommendation, compress_image, compress_pdf
 import uuid
 import secrets
+import io
 
 router = APIRouter()
 
@@ -201,3 +203,180 @@ def delete_share_link(
     ).delete()
     db.commit()
     return {"message": "Share link deleted"}
+
+@router.get("/compression-recommendation/{object_key}")
+def get_compression_advice(
+    object_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    obj = db.query(StorageObject).filter(
+        StorageObject.object_key == object_key,
+        StorageObject.user_id == current_user.id
+    ).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    recommendation = get_compression_recommendation(
+        obj.object_name,
+        obj.content_type,
+        obj.size_bytes
+    )
+
+    savings_bytes = obj.size_bytes - recommendation["estimated_new_size_bytes"]
+    savings_mb = savings_bytes / (1024 * 1024)
+    cost_saving = (savings_bytes / (1024**3)) * settings.PRICING_STORAGE_PER_GB
+
+    return {
+        **recommendation,
+        "filename": obj.object_name,
+        "current_size_bytes": obj.size_bytes,
+        "current_size_mb": round(obj.size_bytes / (1024*1024), 3),
+        "estimated_savings_mb": round(savings_mb, 3),
+        "estimated_cost_saving_per_month": round(cost_saving, 6),
+        "object_key": object_key
+    }
+
+
+@router.post("/compress/{object_key}")
+def compress_file(
+    object_key: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    obj = db.query(StorageObject).filter(
+        StorageObject.object_key == object_key,
+        StorageObject.user_id == current_user.id
+    ).first()
+    if not obj:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    recommendation = get_compression_recommendation(
+        obj.object_name,
+        obj.content_type,
+        obj.size_bytes
+    )
+
+    if not recommendation["should_compress"]:
+        raise HTTPException(status_code=400, detail="File is already optimized. No compression needed.")
+
+    if not recommendation["compression_type"] in ["image_jpeg", "image_png", "pdf"]:
+        raise HTTPException(status_code=400, detail="Compression not supported for this file type yet.")
+
+    try:
+        # Download original file
+        body, size, content_type = minio_service.download_file(
+            current_user.bucket_name, object_key
+        )
+        original_data = body.read()
+        original_size = len(original_data)
+
+        # Compress based on type
+        if recommendation["compression_type"] in ["image_jpeg", "image_png"]:
+            compressed_data, new_size = compress_image(original_data, content_type)
+            new_content_type = "image/jpeg"
+            new_filename = obj.object_name.rsplit('.', 1)[0] + '_compressed.jpg'
+        elif recommendation["compression_type"] == "pdf":
+            compressed_data, new_size = compress_pdf(original_data)
+            new_content_type = "application/pdf"
+            new_filename = obj.object_name.rsplit('.', 1)[0] + '_compressed.pdf'
+
+        # Only save if actually smaller
+        if new_size >= original_size:
+            raise HTTPException(status_code=400, detail="Compression did not reduce file size. Original file kept.")
+
+        # Upload compressed version
+        new_object_key = f"{uuid.uuid4().hex}_compressed_{new_filename}"
+        compressed_io = io.BytesIO(compressed_data)
+        minio_service.upload_file(
+            current_user.bucket_name,
+            new_object_key,
+            compressed_io,
+            new_content_type
+        )
+
+        # Save to database
+        new_obj = StorageObject(
+            user_id=current_user.id,
+            object_name=new_filename,
+            object_key=new_object_key,
+            size_bytes=new_size,
+            content_type=new_content_type
+        )
+        db.add(new_obj)
+
+        # Log action
+        db.add(UsageLog(
+            user_id=current_user.id,
+            action=ActionType.UPLOAD,
+            object_key=new_object_key,
+            bytes_transferred=new_size
+        ))
+        db.commit()
+
+        savings_bytes = original_size - new_size
+        savings_percent = (savings_bytes / original_size) * 100
+
+        log_action(db, current_user.id, "FILE_COMPRESSED", object_key,
+                   f"Compressed {obj.object_name}: {original_size} → {new_size} bytes ({savings_percent:.1f}% saved)")
+
+        return {
+            "message": "File compressed successfully!",
+            "original_filename": obj.object_name,
+            "compressed_filename": new_filename,
+            "original_size_bytes": original_size,
+            "compressed_size_bytes": new_size,
+            "savings_bytes": savings_bytes,
+            "savings_percent": round(savings_percent, 1),
+            "savings_mb": round(savings_bytes / (1024*1024), 3),
+            "new_object_key": new_object_key
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Compression failed: {str(e)}")
+
+
+@router.get("/bulk-compression-report")
+def bulk_compression_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    files = db.query(StorageObject).filter(
+        StorageObject.user_id == current_user.id
+    ).all()
+
+    recommendations = []
+    total_current_size = 0
+    total_potential_savings = 0
+
+    for f in files:
+        rec = get_compression_recommendation(f.object_name, f.content_type, f.size_bytes)
+        total_current_size += f.size_bytes
+        if rec["should_compress"]:
+            savings = f.size_bytes - rec["estimated_new_size_bytes"]
+            total_potential_savings += savings
+            recommendations.append({
+                "filename": f.object_name,
+                "object_key": f.object_key,
+                "current_size_mb": round(f.size_bytes / (1024*1024), 3),
+                "estimated_savings_mb": round(savings / (1024*1024), 3),
+                "savings_percent": rec["estimated_savings_percent"],
+                "ai_verdict": rec["ai_verdict"],
+                "compression_type": rec["compression_type"],
+                "reason": rec["reason"]
+            })
+
+    recommendations.sort(key=lambda x: x["estimated_savings_mb"], reverse=True)
+    cost_saving = (total_potential_savings / (1024**3)) * settings.PRICING_STORAGE_PER_GB
+
+    return {
+        "total_files": len(files),
+        "files_to_compress": len(recommendations),
+        "total_current_size_mb": round(total_current_size / (1024*1024), 3),
+        "total_potential_savings_mb": round(total_potential_savings / (1024*1024), 3),
+        "total_savings_percent": round((total_potential_savings / total_current_size * 100) if total_current_size > 0 else 0, 1),
+        "estimated_monthly_cost_saving": round(cost_saving, 6),
+        "recommendations": recommendations
+    }

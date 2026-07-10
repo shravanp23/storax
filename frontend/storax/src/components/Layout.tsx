@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Zap as ZapIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -14,6 +15,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const navItems = [
     { path: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard'  },
+    { path: '/compression', icon: ZapIcon, label: 'AI Compress' },
     { path: '/files',      icon: FolderOpen,      label: 'My Files'   },
     { path: '/billing',    icon: CreditCard,      label: 'Billing'    },
     { path: '/api-keys',   icon: Key,             label: 'API Keys'   },

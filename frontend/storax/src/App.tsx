@@ -12,6 +12,7 @@ import Admin from './pages/Admin';
 import APIKeys from './pages/APIKeys';
 import AuditLogs from './pages/AuditLogs';
 import Layout from './components/Layout';
+import Compression from './pages/Compression';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -34,6 +35,7 @@ const App: React.FC = () => {
           <Route path="/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><Layout><Admin /></Layout></PrivateRoute>} />
           <Route path="/api-keys" element={<PrivateRoute><Layout><APIKeys /></Layout></PrivateRoute>} />
+          <Route path="/compression" element={<PrivateRoute><Layout><Compression /></Layout></PrivateRoute>} />
           <Route path="/audit-logs" element={<PrivateRoute><Layout><AuditLogs /></Layout></PrivateRoute>} />
         </Routes>
       </BrowserRouter>

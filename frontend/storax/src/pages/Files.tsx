@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
-import { Upload, Trash2, Download, File, Image, FileText, Film, Share2, Copy, X, Clock } from 'lucide-react';
+import { Upload, Trash2, Download, File, Image, FileText, Film, Share2, Copy, X, Clock, Zap } from 'lucide-react';
 
 const getFileIcon = (type: string) => {
   if (type?.startsWith('image/')) return <Image size={20} color="#6C63FF" />;
@@ -221,6 +221,12 @@ const Files: React.FC = () => {
                   onClick={() => { setShareModal(file); setShareLink(''); }}
                   style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '500' }}>
                   <Share2 size={14} /> Share
+                </button>
+                {/* AI Compress Button */}
+                <button
+                  onClick={() => window.location.href = '/compression'}
+                  style={{ background: 'rgba(108,99,255,0.1)', border: '1px solid rgba(108,99,255,0.3)', color: 'var(--primary)', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+                  <Zap size={14} /> AI
                 </button>
                 {/* Download Button */}
                 <button
