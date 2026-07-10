@@ -34,7 +34,6 @@ PyPDF2==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-jose==3.5.0
-python-magic-bin==0.4.14
 python-multipart==0.0.29
 reportlab==4.5.1
 requests==2.34.2
