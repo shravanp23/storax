@@ -30,16 +30,94 @@ const Files: React.FC = () => {
 
   const uploadFile = async (file: File) => {
     setUploading(true);
+
     const form = new FormData();
     form.append('file', file);
+
     try {
       await api.post('/api/storage/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
+
       toast.success(`${file.name} uploaded!`);
-      loadFiles();
-    } catch { toast.error('Upload failed'); }
-    finally { setUploading(false); }
+      toast.success(
+        `${file.name} uploaded! 🤖 Check AI Compression page for optimization tips`,
+        {
+          duration: 5000,
+          icon: '⚡',
+        }
+      );
+
+      await loadFiles();
+
+      try {
+        const filesRes = await api.get('/api/storage/files');
+
+        const uploadedFile = filesRes.data.find(
+          (f: any) => f.filename === file.name
+        );
+
+        if (uploadedFile) {
+          const recRes = await api.get(
+            `/api/storage/compression-recommendation/${uploadedFile.object_key}`
+          );
+
+          const rec = recRes.data;
+
+          if (
+            rec.should_compress &&
+            rec.estimated_savings_percent >= 30
+          ) {
+            toast((t) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '24px' }}>🤖</span>
+
+                <div>
+                  <div style={{ fontWeight: '700', marginBottom: '4px' }}>
+                    AI Tip: Save {rec.estimated_savings_percent}% space!
+                  </div>
+
+                  <div style={{ fontSize: '12px', opacity: 0.8 }}>
+                    This file can be compressed from {rec.current_size_mb.toFixed(1)} MB
+                    to {(rec.estimated_new_size_bytes / (1024 * 1024)).toFixed(1)} MB
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      window.location.href = '/compression';
+                      toast.dismiss(t.id);
+                    }}
+                    style={{
+                      marginTop: '8px',
+                      background: '#6C63FF',
+                      border: 'none',
+                      color: 'white',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    View AI Compression →
+                  </button>
+                </div>
+              </div>
+            ), {
+              duration: 8000
+            });
+          }
+        }
+      } catch (e) {
+        // Silent fail - compression recommendation is optional
+      }
+    } catch {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const deleteFile = async (key: string, name: string) => {

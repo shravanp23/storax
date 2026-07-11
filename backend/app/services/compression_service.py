@@ -17,7 +17,7 @@ def get_compression_recommendation(
     extension = filename.lower().split('.')[-1] if '.' in filename else ''
 
     # Already tiny files - no compression needed
-    if size_bytes < 50 * 1024:  # Less than 50KB
+    if size_bytes < 10 * 1024:  # Less than 10KB
         return {
             "should_compress": False,
             "reason": "File is already very small (under 50KB). No compression needed.",
