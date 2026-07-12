@@ -114,11 +114,7 @@ const Login: React.FC = () => {
             </button>
           </form>
 
-          <div style={{ marginTop: '32px', padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
-            <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '8px', fontWeight: '600' }}>DEMO CREDENTIALS</div>
-            <div style={{ fontSize: '13px', color: '#374151' }}>Admin: <span style={{ fontFamily: 'monospace', color: '#2563EB' }}>admin@storax.com</span></div>
-            <div style={{ fontSize: '13px', color: '#374151' }}>Password: <span style={{ fontFamily: 'monospace', color: '#2563EB' }}>admin123</span></div>
-          </div>
+          
         </div>
       </div>
     </div>

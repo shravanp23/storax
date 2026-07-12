@@ -14,18 +14,11 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
-origins = [
-    "https://storax-5vt3.vercel.app",
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
@@ -39,8 +32,4 @@ app.include_router(auditlogs.router, prefix="/api/audit", tags=["Audit Logs"])
 
 @app.get("/api/health")
 def health_check():
-    return {
-        "status": "healthy",
-        "service": "StoraX API",
-        "version": "1.0.0"
-    }
+    return {"status": "healthy", "service": "StoraX API", "version": "1.0.0"}
