@@ -134,6 +134,11 @@ const Compression: React.FC = () => {
                       <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 10px', borderRadius: '100px', background: vStyle.bg, color: vStyle.color, border: `1px solid ${vStyle.border}` }}>
                         {vStyle.label}
                       </span>
+                      {rec.ml_model_used && (
+    <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '100px', background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0' }}>
+        🤖 ML Model
+    </span>
+)}
                     </div>
                     <p style={{ color: '#6B7280', fontSize: '13px', margin: '0 0 12px', lineHeight: '1.5' }}>🤖 {rec.reason}</p>
                     <div>
