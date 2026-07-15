@@ -36,6 +36,37 @@ def upload_file(
     db.add(UsageLog(user_id=current_user.id, action=ActionType.UPLOAD,
                     object_key=object_key, bytes_transferred=size))
     db.commit()
+    # Send upload confirmation email
+    try:
+        from app.services.email_service import send_upload_confirmation_email
+        send_upload_confirmation_email(
+            current_user.email,
+            current_user.full_name,
+            file.filename,
+            size,
+            current_user.bucket_name
+        )
+    except Exception as e:
+        print(f"Upload email error: {e}")
+
+    # Check storage warning (80% of 1GB)
+    try:
+        from sqlalchemy import func
+        total_bytes = db.query(func.sum(StorageObject.size_bytes))\
+            .filter(StorageObject.user_id == current_user.id).scalar() or 0
+        limit_bytes = 1 * 1024 * 1024 * 1024  # 1GB
+        percent = (total_bytes / limit_bytes) * 100
+        if percent >= 80:
+            from app.services.email_service import send_storage_warning_email
+            send_storage_warning_email(
+                current_user.email,
+                current_user.full_name,
+                total_bytes / (1024**3),
+                1.0,
+                percent
+            )
+    except Exception as e:
+        print(f"Storage warning email error: {e}")
     log_action(db, current_user.id, "FILE_UPLOAD", object_key, f"Uploaded: {file.filename} ({size} bytes)")
     return {"message": "Uploaded successfully", "object_key": object_key,
             "filename": file.filename, "size_bytes": size}

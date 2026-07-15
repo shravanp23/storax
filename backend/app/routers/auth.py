@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
@@ -51,15 +51,22 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     create_minio_bucket(bucket_name)
+
+    # Send welcome email automatically
+    try:
+        from app.services.email_service import send_welcome_email
+        send_welcome_email(user.email, user.full_name, user.bucket_name)
+    except Exception as e:
+        print(f"Welcome email error: {e}")
+
     # Log registration
-    from app.routers.auditlogs import log_action
-    log_action(db, user.id, "USER_REGISTERED", "auth", f"New user registered: {user.email}")
+    try:
+        from app.routers.auditlogs import log_action
+        log_action(db, user.id, "USER_REGISTERED", "auth", f"New user registered: {user.email}")
+    except Exception as e:
+        print(f"Audit log error: {e}")
 
     token = create_token({"sub": str(user.id), "email": user.email})
-
-    # Log login
-    log_action(db, user.id, "USER_LOGIN", "auth", f"User logged in: {user.email}")
-
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -73,12 +80,29 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     }
 
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_token({"sub": str(user.id), "email": user.email})
+
+    # Send login notification email automatically
+    try:
+        from app.services.email_service import send_login_notification_email
+        ip = request.client.host if request.client else "Unknown"
+        login_time = datetime.now().strftime("%B %d, %Y at %I:%M %p UTC")
+        send_login_notification_email(user.email, user.full_name, login_time, ip)
+    except Exception as e:
+        print(f"Login email error: {e}")
+
+    # Log login
+    try:
+        from app.routers.auditlogs import log_action
+        log_action(db, user.id, "USER_LOGIN", "auth", f"User logged in: {user.email}")
+    except Exception as e:
+        print(f"Audit log error: {e}")
+
     return {
         "access_token": token,
         "token_type": "bearer",

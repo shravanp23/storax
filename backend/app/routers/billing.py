@@ -23,6 +23,22 @@ def generate_bill(db: Session = Depends(get_db), current_user: User = Depends(ge
     now = datetime.now(timezone.utc)
     period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     invoice = generate_invoice(current_user.id, db, period_start, now)
+    # Send invoice email automatically
+    try:
+        from app.services.email_service import send_invoice_email
+        send_invoice_email(
+            current_user.email,
+            current_user.full_name,
+            invoice.id,
+            invoice.total_amount,
+            str(invoice.period_start.date()),
+            str(invoice.period_end.date()),
+            invoice.storage_cost,
+            invoice.request_cost,
+            invoice.bandwidth_cost
+        )
+    except Exception as e:
+        print(f"Invoice email error: {e}")
     log_action(db, current_user.id, "INVOICE_GENERATED", f"invoice_{invoice.id}", f"Invoice generated: ${invoice.total_amount}")
     return {"message": "Invoice generated", "invoice_id": invoice.id,
             "total_amount": invoice.total_amount}

@@ -2,115 +2,327 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from app.config import settings
+from datetime import datetime
 
-def send_email(to_email: str, subject: str, html_content: str):
+def send_email(to_email: str, subject: str, html_content: str) -> bool:
     try:
+        if not settings.FROM_EMAIL or not settings.GMAIL_APP_PASSWORD:
+            print(f"⚠️ Email not configured. Would send to {to_email}: {subject}")
+            return False
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = f"StoraX ⚡ <{settings.FROM_EMAIL}>"
         msg['To'] = to_email
-
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        msg.attach(MIMEText(html_content, 'html'))
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
             server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
 
-        print(f"✅ Email sent to {to_email}")
+        print(f"✅ Email sent to {to_email}: {subject}")
+        return True
     except Exception as e:
-        print(f"❌ Email error: {e}")
+        print(f"❌ Email failed to {to_email}: {e}")
+        return False
 
-def send_welcome_email(to_email: str, full_name: str, bucket_name: str):
-    html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0F0E17; color: #E8E8F0; padding: 40px; border-radius: 16px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="color: #6C63FF; font-size: 32px;">⚡ StoraX</h1>
-        </div>
-        <h2 style="color: #E8E8F0;">Welcome to StoraX, {full_name}! 🎉</h2>
-        <p style="color: #9999BB; line-height: 1.7;">Your account has been created successfully. You now have your own isolated cloud storage bucket.</p>
-        <div style="background: #1E1E3A; border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <p style="color: #9999BB; margin: 0 0 8px; font-size: 12px;">YOUR STORAGE BUCKET</p>
-            <p style="color: #6C63FF; font-family: monospace; font-size: 16px; font-weight: bold; margin: 0;">{bucket_name}</p>
-        </div>
-        <div style="background: #1E1E3A; border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <h3 style="color: #E8E8F0; margin-top: 0;">What you can do:</h3>
-            <ul style="color: #9999BB; line-height: 2;">
-                <li>Upload and manage files securely</li>
-                <li>Share files with expiry links</li>
-                <li>Track your usage in real-time</li>
-                <li>Generate and download PDF invoices</li>
-            </ul>
-        </div>
-        <div style="text-align: center; margin-top: 32px;">
-            <a href="https://storax-5vt3.vercel.app/dashboard" style="background: #6C63FF; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px;">Go to Dashboard →</a>
-        </div>
-        <p style="color: #9999BB; font-size: 12px; text-align: center; margin-top: 32px;">StoraX © 2026 — Production-grade Cloud Storage</p>
-    </div>
-    """
-    send_email(to_email, "Welcome to StoraX! Your storage is ready ⚡", html)
-
-def send_invoice_email(to_email: str, full_name: str, invoice_id: int, total_amount: float, period_start: str, period_end: str):
-    html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0F0E17; color: #E8E8F0; padding: 40px; border-radius: 16px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="color: #6C63FF; font-size: 32px;">⚡ StoraX</h1>
-        </div>
-        <h2 style="color: #E8E8F0;">Invoice #{invoice_id} Generated 💳</h2>
-        <p style="color: #9999BB;">Hi {full_name}, your invoice has been generated.</p>
-        <div style="background: #1E1E3A; border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
-            <p style="color: #9999BB; margin: 0 0 8px; font-size: 12px;">TOTAL AMOUNT DUE</p>
-            <p style="font-size: 48px; font-weight: 900; margin: 0; color: #6C63FF;">${total_amount}</p>
-            <p style="color: #9999BB; font-size: 13px; margin: 8px 0 0;">{period_start} to {period_end}</p>
-        </div>
-        <div style="text-align: center; margin-top: 32px;">
-            <a href="https://storax-5vt3.vercel.app/billing" style="background: #6C63FF; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold;">View Invoice →</a>
-        </div>
-        <p style="color: #9999BB; font-size: 12px; text-align: center; margin-top: 32px;">StoraX © 2026</p>
-    </div>
-    """
-    send_email(to_email, f"StoraX Invoice #{invoice_id} — ${total_amount} due", html)
-
-def send_storage_warning_email(to_email: str, full_name: str, used_gb: float, limit_gb: float, percent: float):
-    html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0F0E17; color: #E8E8F0; padding: 40px; border-radius: 16px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="color: #6C63FF; font-size: 32px;">⚡ StoraX</h1>
-        </div>
-        <h2 style="color: #F59E0B;">⚠️ Storage Warning</h2>
-        <p style="color: #9999BB;">Hi {full_name}, you have used <strong style="color: #F59E0B;">{percent:.1f}%</strong> of your storage quota.</p>
-        <div style="background: #1E1E3A; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <p style="color: #9999BB;">Used: <strong style="color: #F59E0B;">{used_gb:.2f} GB</strong> of {limit_gb} GB</p>
-            <div style="background: #0F0E17; border-radius: 8px; height: 12px; margin-top: 12px;">
-                <div style="background: #F59E0B; width: {min(percent, 100)}%; height: 12px; border-radius: 8px;"></div>
+def _base_template(content: str) -> str:
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Inter', Arial, sans-serif; background: #F8FAFC; }}
+            .wrapper {{ max-width: 600px; margin: 0 auto; padding: 40px 20px; }}
+            .card {{ background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }}
+            .header {{ background: #0F172A; padding: 32px 40px; text-align: center; }}
+            .logo {{ font-size: 28px; font-weight: 800; color: white; letter-spacing: -0.5px; }}
+            .logo span {{ color: #60A5FA; }}
+            .tagline {{ color: #94A3B8; font-size: 13px; margin-top: 6px; }}
+            .body {{ padding: 40px; }}
+            .footer {{ background: #F8FAFC; padding: 24px 40px; text-align: center; border-top: 1px solid #E5E7EB; }}
+            .footer p {{ color: #9CA3AF; font-size: 12px; line-height: 1.6; }}
+            .btn {{ display: inline-block; background: #0F172A; color: white !important; padding: 14px 32px; border-radius: 100px; text-decoration: none; font-weight: 700; font-size: 15px; margin: 8px 4px; }}
+            .btn-blue {{ background: #2563EB; }}
+            .info-box {{ background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin: 20px 0; }}
+            .info-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #F3F4F6; }}
+            .info-row:last-child {{ border-bottom: none; }}
+            .info-label {{ color: #6B7280; font-size: 13px; }}
+            .info-value {{ color: #111827; font-size: 13px; font-weight: 600; }}
+            h1 {{ font-size: 24px; font-weight: 800; color: #0F172A; margin-bottom: 12px; letter-spacing: -0.3px; }}
+            h2 {{ font-size: 20px; font-weight: 700; color: #0F172A; margin-bottom: 10px; }}
+            p {{ color: #374151; font-size: 15px; line-height: 1.7; margin-bottom: 16px; }}
+            .badge {{ display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 12px; font-weight: 600; }}
+            .badge-green {{ background: #F0FDF4; color: #16A34A; border: 1px solid #BBF7D0; }}
+            .badge-blue {{ background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }}
+            .divider {{ height: 1px; background: #E5E7EB; margin: 24px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="wrapper">
+            <div class="card">
+                <div class="header">
+                    <div class="logo">Stora<span>X</span></div>
+                    <div class="tagline">Cloud Storage Platform</div>
+                </div>
+                <div class="body">
+                    {content}
+                </div>
+                <div class="footer">
+                    <p>StoraX — Production-grade Multi-tenant Cloud Storage</p>
+                    <p style="margin-top: 8px;">© 2026 StoraX. Built by Shravan Pawar.</p>
+                    <p style="margin-top: 8px; color: #D1D5DB;">You received this email because you have a StoraX account.</p>
+                </div>
             </div>
         </div>
-        <div style="text-align: center; margin-top: 32px;">
-            <a href="https://storax-5vt3.vercel.app/files" style="background: #F59E0B; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold;">Manage Files →</a>
-        </div>
-        <p style="color: #9999BB; font-size: 12px; text-align: center; margin-top: 32px;">StoraX © 2026</p>
-    </div>
+    </body>
+    </html>
     """
-    send_email(to_email, "⚠️ StoraX Storage Warning — Running low!", html)
+
+def send_welcome_email(to_email: str, full_name: str, bucket_name: str):
+    first_name = full_name.split(' ')[0]
+    content = f"""
+        <h1>Welcome to StoraX, {first_name}! 🎉</h1>
+        <p>Your account has been created successfully. You now have your own private cloud storage bucket, ready to use right now.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Account Name</span>
+                <span class="info-value">{full_name}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value">{to_email}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Storage Bucket</span>
+                <span class="info-value" style="font-family: monospace; color: #2563EB;">{bucket_name}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Storage Status</span>
+                <span class="badge badge-green">Active</span>
+            </div>
+        </div>
+
+        <h2>What you can do with StoraX:</h2>
+        <p>✅ Upload and manage files securely in your private bucket<br>
+        ✅ Share files with expiry links (1hr, 24hrs, 7 days)<br>
+        ✅ Track usage in real-time from your dashboard<br>
+        ✅ Generate and download PDF invoices<br>
+        ✅ AI-powered file compression to save storage costs<br>
+        ✅ Generate API keys for programmatic access</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/dashboard" class="btn btn-blue">Go to Dashboard →</a>
+        </div>
+    """
+    send_email(to_email, f"Welcome to StoraX, {first_name}! Your storage is ready ⚡", _base_template(content))
+
+def send_login_notification_email(to_email: str, full_name: str, login_time: str, ip_address: str = "Unknown"):
+    first_name = full_name.split(' ')[0]
+    content = f"""
+        <h1>New Login Detected 🔐</h1>
+        <p>Hi {first_name}, we noticed a new login to your StoraX account. If this was you, no action is needed.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Account</span>
+                <span class="info-value">{to_email}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Login Time</span>
+                <span class="info-value">{login_time}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">IP Address</span>
+                <span class="info-value">{ip_address}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="badge badge-green">Successful</span>
+            </div>
+        </div>
+
+        <p style="color: #DC2626; font-size: 14px;">⚠️ If you did not perform this login, please change your password immediately and contact support.</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/dashboard" class="btn">Open Dashboard →</a>
+        </div>
+    """
+    send_email(to_email, f"StoraX: New login to your account", _base_template(content))
+
+def send_upload_confirmation_email(to_email: str, full_name: str, filename: str, file_size_bytes: float, bucket_name: str):
+    first_name = full_name.split(' ')[0]
+    size_kb = file_size_bytes / 1024
+    size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.2f} MB"
+    upload_time = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    content = f"""
+        <h1>File Uploaded Successfully ☁️</h1>
+        <p>Hi {first_name}, your file has been uploaded to your StoraX storage bucket.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">File Name</span>
+                <span class="info-value">{filename}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">File Size</span>
+                <span class="info-value">{size_str}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Storage Bucket</span>
+                <span class="info-value" style="font-family: monospace; font-size: 12px;">{bucket_name}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Upload Time</span>
+                <span class="info-value">{upload_time}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="badge badge-green">Stored Securely</span>
+            </div>
+        </div>
+
+        <p style="font-size: 13px; color: #6B7280;">Your file is now stored securely in your private bucket and is accessible from your dashboard. You can also create a shareable link with a custom expiry time.</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/files" class="btn btn-blue">View My Files →</a>
+        </div>
+    """
+    send_email(to_email, f"StoraX: File '{filename}' uploaded successfully", _base_template(content))
+
+def send_invoice_email(to_email: str, full_name: str, invoice_id: int, total_amount: float,
+                       period_start: str, period_end: str, storage_cost: float = 0,
+                       request_cost: float = 0, bandwidth_cost: float = 0):
+    first_name = full_name.split(' ')[0]
+    content = f"""
+        <h1>Invoice #{invoice_id} Generated 💳</h1>
+        <p>Hi {first_name}, your StoraX invoice for the billing period has been generated and is ready to download.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Invoice ID</span>
+                <span class="info-value">#{invoice_id}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Billing Period</span>
+                <span class="info-value">{period_start} to {period_end}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Storage Cost</span>
+                <span class="info-value">${storage_cost}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Request Cost</span>
+                <span class="info-value">${request_cost}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Bandwidth Cost</span>
+                <span class="info-value">${bandwidth_cost}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label" style="font-weight: 700; color: #0F172A;">Total Amount Due</span>
+                <span class="info-value" style="font-size: 20px; color: #2563EB; font-weight: 800;">${total_amount}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="badge" style="background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;">PENDING</span>
+            </div>
+        </div>
+
+        <p style="font-size: 13px; color: #6B7280;">You can download your full PDF invoice from the billing page in your StoraX dashboard.</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/billing" class="btn btn-blue">View & Download Invoice →</a>
+        </div>
+    """
+    send_email(to_email, f"StoraX Invoice #{invoice_id} — ${total_amount} due", _base_template(content))
+
+def send_storage_warning_email(to_email: str, full_name: str, used_gb: float, limit_gb: float, percent: float):
+    first_name = full_name.split(' ')[0]
+    used_mb = used_gb * 1024
+    content = f"""
+        <h1>⚠️ Storage Warning</h1>
+        <p>Hi {first_name}, you have used <strong>{percent:.1f}%</strong> of your StoraX storage quota. Consider cleaning up files or your uploads may be restricted.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Storage Used</span>
+                <span class="info-value" style="color: #D97706;">{used_mb:.0f} MB ({percent:.1f}%)</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Storage Limit</span>
+                <span class="info-value">{limit_gb} GB</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status</span>
+                <span class="badge" style="background: #FFFBEB; color: #D97706; border: 1px solid #FDE68A;">⚠️ Warning</span>
+            </div>
+        </div>
+
+        <p>💡 <strong>Tip:</strong> Use our AI Compression feature to reduce file sizes by up to 70% without quality loss.</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/files" class="btn">Manage Files →</a>
+            <a href="https://storax-5vt3.vercel.app/compression" class="btn btn-blue">AI Compress →</a>
+        </div>
+    """
+    send_email(to_email, f"StoraX: You've used {percent:.0f}% of your storage", _base_template(content))
 
 def send_share_notification_email(to_email: str, shared_by: str, filename: str, share_url: str, expires_at: str):
-    html = f"""
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0F0E17; color: #E8E8F0; padding: 40px; border-radius: 16px;">
-        <div style="text-align: center; margin-bottom: 32px;">
-            <h1 style="color: #6C63FF; font-size: 32px;">⚡ StoraX</h1>
+    content = f"""
+        <h1>🔗 File Shared With You</h1>
+        <p><strong>{shared_by}</strong> has shared a file with you via StoraX.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">File Name</span>
+                <span class="info-value">{filename}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Shared By</span>
+                <span class="info-value">{shared_by}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Link Expires</span>
+                <span class="info-value" style="color: #DC2626;">{expires_at}</span>
+            </div>
         </div>
-        <h2 style="color: #E8E8F0;">🔗 File Shared With You</h2>
-        <p style="color: #9999BB;"><strong style="color: #E8E8F0;">{shared_by}</strong> shared a file with you.</p>
-        <div style="background: #1E1E3A; border: 1px solid rgba(108,99,255,0.3); border-radius: 12px; padding: 20px; margin: 24px 0;">
-            <p style="color: #9999BB; margin: 0 0 8px; font-size: 12px;">FILE NAME</p>
-            <p style="color: #E8E8F0; font-weight: bold; margin: 0 0 16px;">{filename}</p>
-            <p style="color: #9999BB; margin: 0 0 8px; font-size: 12px;">EXPIRES AT</p>
-            <p style="color: #FF6584; margin: 0;">{expires_at}</p>
+
+        <p style="font-size: 13px; color: #6B7280;">This link will expire automatically. Download the file before it expires.</p>
+
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="{share_url}" class="btn btn-blue">Download File →</a>
         </div>
-        <div style="text-align: center; margin-top: 32px;">
-            <a href="{share_url}" style="background: #6C63FF; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: bold;">Download File →</a>
-        </div>
-        <p style="color: #9999BB; font-size: 12px; text-align: center; margin-top: 32px;">StoraX © 2026</p>
-    </div>
     """
-    send_email(to_email, f"🔗 {shared_by} shared a file with you on StoraX", html)
+    send_email(to_email, f"StoraX: {shared_by} shared '{filename}' with you", _base_template(content))
+
+def send_bulk_email(to_emails: list, subject: str, html_content: str) -> list:
+    results = []
+    for email in to_emails:
+        result = send_email(email, subject, html_content)
+        results.append({"email": email, "sent": result})
+    return results
+
+def send_admin_broadcast_email(to_emails: list, subject: str, message: str, admin_name: str) -> list:
+    content = f"""
+        <h1>{subject}</h1>
+        <div class="info-box" style="border-left: 4px solid #2563EB;">
+            <p style="margin: 0; white-space: pre-line; color: #111827;">{message}</p>
+        </div>
+        <p style="color: #6B7280; font-size: 13px;">— {admin_name}, StoraX Admin Team</p>
+        <div class="divider"></div>
+        <div style="text-align: center;">
+            <a href="https://storax-5vt3.vercel.app/dashboard" class="btn">Go to StoraX →</a>
+        </div>
+    """
+    return send_bulk_email(to_emails, subject, _base_template(content))
