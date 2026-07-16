@@ -2,9 +2,15 @@ import io
 import os
 import numpy as np
 from PIL import Image
-import PyPDF2
 from app.config import settings
 
+# Try importing PyPDF2
+try:
+    import PyPDF2  # type: ignore[import-not-found]
+    HAS_PYPDF2 = True
+except ImportError:
+    HAS_PYPDF2 = False
+    print("⚠️ PyPDF2 not available, PDF compression disabled")
 # Load ML models
 _savings_model = None
 _compress_model = None
@@ -189,6 +195,8 @@ def compress_image(file_data: bytes, content_type: str, quality: int = 75) -> tu
 
 
 def compress_pdf(file_data: bytes) -> tuple:
+    if not HAS_PYPDF2:
+        raise Exception("PDF compression not available. Please install PyPDF2.")
     try:
         reader = PyPDF2.PdfReader(io.BytesIO(file_data))
         writer = PyPDF2.PdfWriter()

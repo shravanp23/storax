@@ -92,3 +92,15 @@ def broadcast_email(
         "failed": failed,
         "results": results
     }
+    @router.get("/test-email")
+def test_email(admin: User = Depends(get_admin_user)):
+    try:
+        from app.services.email_service import send_email
+        result = send_email(
+            admin.email,
+            "StoraX Email Test ✅",
+            "<h1>Email is working!</h1><p>Your StoraX email configuration is correct.</p>"
+        )
+        return {"success": result, "sent_to": admin.email}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

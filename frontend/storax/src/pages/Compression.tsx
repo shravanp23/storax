@@ -222,53 +222,99 @@ const Compression: React.FC = () => {
     await addAIMessage(`${icon} I detected a ${label} file — **${f.name}** (${formatBytes(f.size)}).`, 700);
     await addAIMessage('Analyzing file metadata and estimating compression potential...', 500);
 
-    // Call backend analysis
     try {
-      // We use the bulk report approach — upload then analyze OR direct analysis
-      // Here we send file info to get recommendation
-      const res = await api.post('/api/storage/analyze-before-upload', {
-        filename: f.name,
-        content_type: f.type,
-        size_bytes: f.size,
-      }).catch(async () => {
-        // Fallback: calculate client-side
-        const size_mb = f.size / (1024 * 1024);
-        let savings = 0, should = false, reason = '', ct = null;
-        if (f.type.startsWith('image/')) {
-          if (f.name.toLowerCase().endsWith('.jpg') || f.name.toLowerCase().endsWith('.jpeg')) {
-            savings = size_mb > 1 ? 65 : 40; should = true;
-            reason = `JPEG image of ${size_mb.toFixed(1)}MB — high compression potential.`;
-            ct = 'image_jpeg';
-          } else if (f.name.toLowerCase().endsWith('.png')) {
-            savings = size_mb > 0.5 ? 50 : 20; should = size_mb > 0.3;
-            reason = `PNG image can be optimized.`; ct = 'image_png';
-          } else { savings = 55; should = true; reason = 'Image file can be compressed.'; ct = 'image_jpeg'; }
-        } else if (f.type.includes('pdf')) {
-          savings = size_mb > 5 ? 55 : size_mb > 1 ? 35 : 15;
-          should = size_mb > 1; reason = `PDF of ${size_mb.toFixed(1)}MB — compression recommended.`; ct = 'pdf';
-        } else if (f.type.startsWith('text/') || ['json','csv','xml','html','js','ts','py'].some(e => f.name.endsWith(e))) {
-          savings = 75; should = true; reason = 'Text file — very high compression ratio possible.'; ct = 'text';
-        }
-        return {
-          data: {
-            filename: f.name, original_size_bytes: f.size, content_type: f.type,
-            should_compress: should, estimated_savings_percent: savings,
-            estimated_new_size_bytes: f.size * (1 - savings / 100),
-            reason, ai_verdict: savings >= 50 ? 'highly_recommended' : savings >= 30 ? 'recommended' : 'optional',
-            compression_type: ct,
-          }
-        };
-      });
+      let analysisData: FileAnalysis;
 
-      const a: FileAnalysis = res.data;
-      setAnalysis(a);
+      try {
+        const res = await api.post('/api/storage/analyze-before-upload', {
+          filename: f.name,
+          content_type: f.type,
+          size_bytes: f.size,
+        });
+
+        analysisData = {
+          filename: f.name,
+          original_size_bytes: f.size,
+          content_type: f.type,
+          should_compress: res.data.should_compress,
+          estimated_savings_percent: res.data.estimated_savings_percent || 0,
+          estimated_new_size_bytes: res.data.estimated_new_size_bytes || f.size,
+          reason: res.data.reason || '',
+          ai_verdict: res.data.ai_verdict || 'optional',
+          compression_type: res.data.compression_type || null,
+        };
+      } catch (err) {
+        const size_mb = f.size / (1024 * 1024);
+        const ext = f.name.toLowerCase().split('.').pop() || '';
+        let savings = 0;
+        let should = false;
+        let reason = '';
+        let ct: string | null = null;
+        let verdict = 'optional';
+
+        if (['jpg', 'jpeg'].includes(ext)) {
+          savings = size_mb > 1 ? 65 : 40;
+          should = true;
+          reason = `JPEG of ${size_mb.toFixed(1)}MB — high compression potential.`;
+          ct = 'image_jpeg';
+          verdict = size_mb > 1 ? 'highly_recommended' : 'recommended';
+        } else if (ext === 'png') {
+          savings = size_mb > 0.5 ? 50 : 20;
+          should = size_mb > 0.3;
+          reason = 'PNG can be optimized to reduce size.';
+          ct = 'image_png';
+          verdict = 'recommended';
+        } else if (['bmp', 'gif', 'tiff', 'tif'].includes(ext)) {
+          savings = 60;
+          should = true;
+          reason = `${ext.toUpperCase()} has high compression potential.`;
+          ct = 'image_jpeg';
+          verdict = 'highly_recommended';
+        } else if (ext === 'pdf') {
+          savings = size_mb > 5 ? 55 : size_mb > 1 ? 35 : 10;
+          should = size_mb > 1;
+          reason = `PDF of ${size_mb.toFixed(1)}MB.`;
+          ct = 'pdf';
+          verdict = size_mb > 5 ? 'highly_recommended' : 'recommended';
+        } else if (['txt', 'csv', 'json', 'xml', 'html', 'js', 'ts', 'py'].includes(ext)) {
+          savings = 75;
+          should = true;
+          reason = 'Text file — very high compression possible.';
+          ct = 'text';
+          verdict = 'highly_recommended';
+        } else if (['mp4', 'mov', 'avi'].includes(ext)) {
+          savings = size_mb > 50 ? 35 : 10;
+          should = size_mb > 50;
+          reason = 'Video compression available for large files.';
+          verdict = 'optional';
+        } else if (['zip', 'rar', '7z', 'gz'].includes(ext)) {
+          savings = 0;
+          should = false;
+          reason = 'Already compressed.';
+          verdict = 'already_compressed';
+        }
+
+        analysisData = {
+          filename: f.name,
+          original_size_bytes: f.size,
+          content_type: f.type,
+          should_compress: should,
+          estimated_savings_percent: savings,
+          estimated_new_size_bytes: f.size * (1 - savings / 100),
+          reason,
+          ai_verdict: verdict,
+          compression_type: ct,
+        };
+      }
+
+      setAnalysis(analysisData);
       setStage('analyzed');
 
-      if (a.should_compress && a.estimated_savings_percent >= 10) {
-        await addAIMessage(`This file can be compressed by approximately **${a.estimated_savings_percent.toFixed(0)}%**.`, 600);
-        await addAIMessage(a.reason, 500);
-        const savedMB = ((a.original_size_bytes - a.estimated_new_size_bytes) / (1024 * 1024)).toFixed(2);
-        const costSaving = ((a.original_size_bytes - a.estimated_new_size_bytes) / (1024 ** 3) * 0.02).toFixed(5);
+      if (analysisData.should_compress && analysisData.estimated_savings_percent >= 10) {
+        await addAIMessage(`This file can be compressed by approximately **${analysisData.estimated_savings_percent.toFixed(0)}%**.`, 600);
+        await addAIMessage(analysisData.reason, 500);
+        const savedMB = ((analysisData.original_size_bytes - analysisData.estimated_new_size_bytes) / (1024 * 1024)).toFixed(2);
+        const costSaving = ((analysisData.original_size_bytes - analysisData.estimated_new_size_bytes) / (1024 ** 3) * 0.02).toFixed(5);
         await addAIMessage(`Estimated savings: **${savedMB} MB** (~$${costSaving}/month storage cost reduction).`, 500);
         await addAIMessage('Click **Compress Now** when you\'re ready, or upload directly without compression.', 600);
       } else {

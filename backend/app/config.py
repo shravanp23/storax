@@ -12,10 +12,12 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = True
     MINIO_BUCKET: str = "storax-files"
 
-    FROM_EMAIL: str = "shravanpawar208@gmail.com"
-    GMAIL_APP_PASSWORD: str = ""
-    SENDGRID_API_KEY: str = ""
-    BREVO_API_KEY: str = ""
+    # Email config — at least one method required
+    FROM_EMAIL: str = ""
+    BREVO_API_KEY: str = ""      # xkeysib-... from Brevo API Keys tab
+    BREVO_LOGIN: str = ""        # Your Brevo account email
+    BREVO_SMTP_KEY: str = ""     # SMTP password from Brevo SMTP tab
+    GMAIL_APP_PASSWORD: str = "" # Gmail App Password fallback
 
     PRICING_STORAGE_PER_GB: float = 0.02
     PRICING_REQUESTS_PER_1000: float = 0.01
