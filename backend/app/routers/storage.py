@@ -411,3 +411,20 @@ def bulk_compression_report(
         "estimated_monthly_cost_saving": round(cost_saving, 6),
         "recommendations": recommendations
     }
+    from pydantic import BaseModel as PydanticBaseModel
+
+class AnalyzeRequest(PydanticBaseModel):
+    filename: str
+    content_type: str
+    size_bytes: float
+
+@router.post("/analyze-before-upload")
+def analyze_before_upload(body: AnalyzeRequest, current_user: User = Depends(get_current_user)):
+    from app.services.compression_service import get_compression_recommendation
+    rec = get_compression_recommendation(body.filename, body.content_type, body.size_bytes)
+    return {
+        "filename": body.filename,
+        "original_size_bytes": body.size_bytes,
+        "content_type": body.content_type,
+        **rec
+    }
