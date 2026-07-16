@@ -92,7 +92,7 @@ def broadcast_email(
         "failed": failed,
         "results": results
     }
-    @router.get("/test-email")
+@router.get("/test-email")
 def test_email(admin: User = Depends(get_admin_user)):
     try:
         from app.services.email_service import send_email
