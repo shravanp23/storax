@@ -14,14 +14,10 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      api.get('/api/storage/usage'),
-      api.get('/api/billing/current'),
-      api.get('/api/storage/files'),
-    ]).then(([u, b, f]) => {
-      setUsage(u.data);
-      setBill(b.data);
-      setFiles(f.data);
+    api.get('/api/storage/summary').then((res) => {
+      setUsage(res.data.usage);
+      setBill(res.data.bill);
+      setFiles(res.data.files);
     }).finally(() => setLoading(false));
   }, []);
 

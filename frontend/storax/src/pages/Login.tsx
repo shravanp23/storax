@@ -16,15 +16,20 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const startedAt = performance.now();
     try {
       const form = new FormData();
       form.append('username', email);
       form.append('password', password);
+      const requestStartedAt = performance.now();
       const res = await api.post('/api/auth/login', form);
+      console.info('auth.login frontend api_ms=', (performance.now() - requestStartedAt).toFixed(2));
       login(res.data.access_token, res.data.user);
       toast.success('Welcome back!');
+      console.info('auth.login frontend total_ms=', (performance.now() - startedAt).toFixed(2));
       navigate('/dashboard');
     } catch (err: any) {
+      console.info('auth.login frontend total_ms=', (performance.now() - startedAt).toFixed(2));
       toast.error(err.response?.data?.detail || 'Login failed');
     } finally { setLoading(false); }
   };

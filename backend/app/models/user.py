@@ -25,13 +25,13 @@ class APIKey(Base):
     __tablename__ = "api_keys"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, __import__('sqlalchemy').ForeignKey("users.id"))
+    user_id = Column(Integer, __import__('sqlalchemy').ForeignKey("users.id"), index=True)
     name = Column(String, nullable=False)
-    key = Column(String, unique=True, nullable=False)
-    key_prefix = Column(String, nullable=False)
-    is_active = Column(Boolean, default=True)
+    key = Column(String, unique=True, nullable=False, index=True)
+    key_prefix = Column(String, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, index=True)
     permissions = Column(String, default="read_write")
     last_used = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime, index=True, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="api_keys")

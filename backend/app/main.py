@@ -3,8 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 from app.routers import auth, storage, billing, admin, apikeys, auditlogs
 from app.models import user, storage as storage_model, billing as billing_model
+import logging
+from time import perf_counter
 
+
+logger = logging.getLogger("storax.startup")
+
+startup_started_at = perf_counter()
 Base.metadata.create_all(bind=engine)
+logger.info("startup.metadata_create_all_ms=%.2f", (perf_counter() - startup_started_at) * 1000)
 
 app = FastAPI(
     title="StoraX API",

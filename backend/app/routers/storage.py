@@ -9,6 +9,8 @@ from app.services.auth_service import get_current_user
 from app.services import minio_service
 from app.routers.auditlogs import log_action
 from app.services.compression_service import get_compression_recommendation, compress_image, compress_pdf
+from app.services.billing_service import calculate_bill
+from app.config import settings
 from pydantic import BaseModel as PydanticBaseModel
 import uuid
 import secrets
@@ -132,6 +134,37 @@ def get_usage(db: Session = Depends(get_db), current_user: User = Depends(get_cu
         "total_bytes": total_bytes,
         "total_gb": round(total_bytes / (1024**3), 6),
         "total_requests": total_requests
+    }
+
+
+@router.get("/summary")
+def get_dashboard_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from sqlalchemy import func
+
+    total_bytes = db.query(func.sum(StorageObject.size_bytes)).filter(StorageObject.user_id == current_user.id).scalar() or 0
+    total_files = db.query(StorageObject).filter(StorageObject.user_id == current_user.id).count()
+    total_requests = db.query(UsageLog).filter(UsageLog.user_id == current_user.id).count()
+    now = datetime.now(timezone.utc)
+    period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    bill = calculate_bill(current_user.id, db, period_start, now)
+    files = db.query(StorageObject).filter(StorageObject.user_id == current_user.id).order_by(StorageObject.uploaded_at.desc()).limit(4).all()
+
+    return {
+        "usage": {
+            "total_files": total_files,
+            "total_bytes": total_bytes,
+            "total_gb": round(total_bytes / (1024**3), 6),
+            "total_requests": total_requests,
+        },
+        "bill": bill,
+        "files": [{
+            "id": f.id,
+            "filename": f.object_name,
+            "object_key": f.object_key,
+            "size_bytes": f.size_bytes,
+            "content_type": f.content_type,
+            "uploaded_at": f.uploaded_at,
+        } for f in files],
     }
 
 
