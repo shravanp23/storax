@@ -348,8 +348,10 @@ const Compression: React.FC = () => {
       form.append('file', file);
       const uploadRes = await api.post('/api/storage/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
         onUploadProgress: e => setUploadProgress(Math.round((e.loaded * 100) / (e.total || 1)))
       });
+      setUploadProgress(100);
       const objectKey = uploadRes.data.object_key;
 
       // Step 2: Compress the uploaded file
@@ -399,8 +401,10 @@ const Compression: React.FC = () => {
     try {
       await api.post('/api/storage/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
         onUploadProgress: e => setUploadProgress(Math.round((e.loaded * 100) / (e.total || 1)))
       });
+      setUploadProgress(100);
       setStage('done');
       await addAIMessage(`✅ **${file.name}** uploaded successfully to your StoraX bucket!`, 400);
       await addAIMessage('Visit My Files to view and manage all your files.', 400);
@@ -409,8 +413,11 @@ const Compression: React.FC = () => {
       setStage('analyzed');
       await addAIMessage('❌ Upload failed. Please try again.', 400);
       toast.error(err.response?.data?.detail || 'Upload failed');
+    } finally {
+      setUploadProgress(0);
     }
   }, [file, addAIMessage]);
+
 
   // ── Reset ──
   const handleReset = useCallback(async () => {
