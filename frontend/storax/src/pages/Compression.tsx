@@ -335,7 +335,6 @@ const Compression: React.FC = () => {
 
     await addAIMessage(`Compressing your ${getFileIcon(file.type).label.toLowerCase()}...`, 400);
 
-    // Simulate progress while backend compresses
     const interval = setInterval(() => {
       setProgress(p => {
         if (p >= 85) { clearInterval(interval); return 85; }
@@ -344,15 +343,16 @@ const Compression: React.FC = () => {
     }, 200);
 
     try {
-      // Upload file first to get object_key, then compress
+      // Step 1: Upload original file first
       const form = new FormData();
       form.append('file', file);
       const uploadRes = await api.post('/api/storage/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: e => setUploadProgress(Math.round((e.loaded * 100) / (e.total || 1)))
       });
       const objectKey = uploadRes.data.object_key;
 
-      // Now compress
+      // Step 2: Compress the uploaded file
       const compRes = await api.post(`/api/storage/compress/${objectKey}`);
       clearInterval(interval);
       setProgress(100);
@@ -370,20 +370,19 @@ const Compression: React.FC = () => {
       setStage('compressed');
 
       await addAIMessage('✅ Compression completed successfully!', 500);
-      await addAIMessage(`You saved **${r.savings_mb} MB** (${r.savings_percent.toFixed(1)}% reduction).`, 400);
-      await addAIMessage(
-        `Original: ${formatBytes(r.original_size_bytes)} → Compressed: ${formatBytes(r.compressed_size_bytes)}`,
-        400
-      );
+      await addAIMessage(`You saved **${r.savings_mb} MB** — ${r.savings_percent.toFixed(1)}% smaller.`, 400);
+      await addAIMessage(`Original: ${formatBytes(r.original_size_bytes)} → Compressed: ${formatBytes(r.compressed_size_bytes)}`, 400);
       const costSave = (r.savings_bytes / (1024 ** 3) * 0.02 * 12).toFixed(4);
-      await addAIMessage(`You saved ${r.savings_percent.toFixed(0)}% storage. This will reduce your monthly storage bill by ~$${costSave}/year.`, 500);
-      await addAIMessage('The compressed file is now stored in your bucket. You can also download it directly.', 600);
+      await addAIMessage(`You saved ${r.savings_percent.toFixed(0)}% storage — this reduces your annual bill by ~$${costSave}.`, 500);
+      await addAIMessage('Both the original and compressed versions are now in your bucket. Click "View in My Files" to manage them.', 600);
+      toast.success(`Compressed! Saved ${r.savings_mb} MB`);
+
     } catch (err: any) {
       clearInterval(interval);
       setProgress(0);
       setStage('analyzed');
-      const msg = err.response?.data?.detail || 'Compression failed';
-      await addAIMessage(`❌ ${msg}. You can try uploading the original file instead.`, 400);
+      const msg = err.response?.data?.detail || 'Compression failed. Try uploading the original file instead.';
+      await addAIMessage(`❌ ${msg}`, 400);
       toast.error(msg);
     }
   }, [file, analysis, addAIMessage]);
@@ -393,7 +392,7 @@ const Compression: React.FC = () => {
     if (!file) return;
     setStage('uploading');
     setUploadProgress(0);
-    await addAIMessage('Uploading original file to StoraX...', 300);
+    await addAIMessage('Uploading file to StoraX...', 300);
 
     const form = new FormData();
     form.append('file', file);
@@ -404,12 +403,12 @@ const Compression: React.FC = () => {
       });
       setStage('done');
       await addAIMessage(`✅ **${file.name}** uploaded successfully to your StoraX bucket!`, 400);
-      await addAIMessage('Visit My Files to view and manage all your stored files.', 400);
+      await addAIMessage('Visit My Files to view and manage all your files.', 400);
       toast.success(`${file.name} uploaded!`);
-    } catch {
+    } catch (err: any) {
       setStage('analyzed');
       await addAIMessage('❌ Upload failed. Please try again.', 400);
-      toast.error('Upload failed');
+      toast.error(err.response?.data?.detail || 'Upload failed');
     }
   }, [file, addAIMessage]);
 
@@ -656,31 +655,31 @@ const Compression: React.FC = () => {
 
               {/* ─ Upload to StoraX Button ─ */}
               {stage === 'compressed' && result && (
-                <div style={{ background: 'white', borderRadius: 16, border: '1px solid #E5E7EB', padding: 24 }}>
-                  <h4 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>Ready to Store</h4>
-                  <p style={{ fontSize: 13, color: '#64748B', marginBottom: 20, lineHeight: 1.6 }}>
-                    The compressed file (<strong>{result.compressed_filename}</strong>) is already stored in your bucket. You can view it in My Files.
-                  </p>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <a href="/files" style={{
-                      flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      background: '#0F172A', color: 'white', textDecoration: 'none',
-                      padding: '14px 24px', borderRadius: 100, fontSize: 15, fontWeight: 700,
-                    }}>
-                      <Cloud size={18} /> View in My Files
-                    </a>
-                    <button onClick={handleReset} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      background: 'white', color: '#374151', border: '1px solid #E5E7EB',
-                      padding: '14px 20px', borderRadius: 100, fontSize: 14, fontWeight: 600,
-                      cursor: 'pointer', fontFamily: 'inherit'
-                    }}>
-                      <RefreshCw size={15} /> New File
-                    </button>
-                  </div>
-                </div>
-              )}
-
+  <div style={{ background: 'white', borderRadius: 16, border: '1px solid #E5E7EB', padding: 24 }}>
+    <div style={{ fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 1.6 }}>
+      ✅ The compressed file <strong>{result.compressed_filename}</strong> is already stored in your bucket.
+      The original file has also been saved. You can manage both from My Files.
+    </div>
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <a href="/files" style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        background: '#0F172A', color: 'white', textDecoration: 'none',
+        padding: '14px 24px', borderRadius: 100, fontSize: 15, fontWeight: 700,
+        minWidth: 180,
+      }}>
+        <Cloud size={18} /> View in My Files
+      </a>
+      <button onClick={handleReset} style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        background: 'white', color: '#374151', border: '1px solid #E5E7EB',
+        padding: '14px 20px', borderRadius: 100, fontSize: 14, fontWeight: 600,
+        cursor: 'pointer', fontFamily: 'inherit'
+      }}>
+        <RefreshCw size={15} /> New File
+      </button>
+    </div>
+  </div>
+)}
               {/* ─ Upload original button (when compression not possible) ─ */}
               {stage === 'analyzed' && !canCompress && (
                 <div style={{ background: 'white', borderRadius: 16, border: '1px solid #E5E7EB', padding: 24, textAlign: 'center' }}>
