@@ -1,7 +1,12 @@
+import logging
+import time
+
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 def get_s3_client():
     return boto3.client(
@@ -9,7 +14,12 @@ def get_s3_client():
         endpoint_url=f"https://{settings.MINIO_ENDPOINT}",
         aws_access_key_id=settings.MINIO_ACCESS_KEY,
         aws_secret_access_key=settings.MINIO_SECRET_KEY,
-        config=Config(signature_version="s3v4"),
+        config=Config(
+            signature_version="s3v4",
+            connect_timeout=10,
+            read_timeout=120,
+            retries={"max_attempts": 2, "mode": "standard"},
+        ),
         region_name="us-east-005"
     )
 
@@ -23,12 +33,31 @@ def upload_file(bucket_name: str, object_key: str, file_data, content_type: str)
     size = file_data.tell()
     file_data.seek(0)
     full_key = f"{bucket_name}/{object_key}"
-    s3.upload_fileobj(
-        file_data,
-        settings.MINIO_BUCKET,
-        full_key,
-        ExtraArgs={"ContentType": content_type}
-    )
+    start = time.perf_counter()
+    try:
+        s3.upload_fileobj(
+            file_data,
+            settings.MINIO_BUCKET,
+            full_key,
+            ExtraArgs={"ContentType": content_type}
+        )
+        logger.info(
+            "minio_upload_complete bucket=%s key=%s size_bytes=%s elapsed=%.3fs",
+            bucket_name,
+            object_key,
+            size,
+            time.perf_counter() - start,
+        )
+    except Exception as exc:
+        logger.exception(
+            "minio_upload_failed bucket=%s key=%s size_bytes=%s elapsed=%.3fs error=%s",
+            bucket_name,
+            object_key,
+            size,
+            time.perf_counter() - start,
+            exc,
+        )
+        raise
     return size
 
 def download_file(bucket_name: str, object_key: str):

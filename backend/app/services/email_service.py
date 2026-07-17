@@ -46,7 +46,7 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
             msg['To'] = to_email
             msg.attach(MIMEText(html_content, 'html'))
 
-            with smtplib.SMTP('smtp-relay.brevo.com', 587) as server:
+            with smtplib.SMTP('smtp-relay.brevo.com', 587, timeout=15) as server:
                 server.starttls()
                 server.login(settings.BREVO_LOGIN, settings.BREVO_SMTP_KEY)
                 server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
@@ -65,7 +65,7 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
             msg['To'] = to_email
             msg.attach(MIMEText(html_content, 'html'))
 
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
                 server.login(settings.FROM_EMAIL, settings.GMAIL_APP_PASSWORD)
                 server.sendmail(settings.FROM_EMAIL, to_email, msg.as_string())
 

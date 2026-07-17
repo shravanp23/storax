@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+import logging
+import time
+
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime, timezone, timedelta
 from app.database import get_db
 from app.models.user import User
@@ -17,62 +21,168 @@ import secrets
 import io
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _log_upload_step(step: str, request_start: float, step_start: float, **details):
+    elapsed = time.perf_counter() - step_start
+    total_elapsed = time.perf_counter() - request_start
+    detail_text = " ".join(f"{key}={value}" for key, value in details.items() if value is not None)
+    logger.info(
+        "upload_flow step=%s elapsed=%.3fs total=%.3fs %s",
+        step,
+        elapsed,
+        total_elapsed,
+        detail_text,
+    )
+
+
+def _send_upload_confirmation_email_task(to_email: str, full_name: str, filename: str, size: int, bucket_name: str):
+    start = time.perf_counter()
+    try:
+        from app.services.email_service import send_upload_confirmation_email
+        send_upload_confirmation_email(to_email, full_name, filename, size, bucket_name)
+        logger.info(
+            "upload_confirmation_email_sent elapsed=%.3fs to_email=%s filename=%s",
+            time.perf_counter() - start,
+            to_email,
+            filename,
+        )
+    except Exception as exc:
+        logger.exception(
+            "upload_confirmation_email_failed elapsed=%.3fs to_email=%s filename=%s error=%s",
+            time.perf_counter() - start,
+            to_email,
+            filename,
+            exc,
+        )
+
+
+def _send_storage_warning_email_task(to_email: str, full_name: str, used_gb: float, limit_gb: float, percent: float):
+    start = time.perf_counter()
+    try:
+        from app.services.email_service import send_storage_warning_email
+        send_storage_warning_email(to_email, full_name, used_gb, limit_gb, percent)
+        logger.info(
+            "storage_warning_email_sent elapsed=%.3fs to_email=%s percent=%.1f",
+            time.perf_counter() - start,
+            to_email,
+            percent,
+        )
+    except Exception as exc:
+        logger.exception(
+            "storage_warning_email_failed elapsed=%.3fs to_email=%s percent=%.1f error=%s",
+            time.perf_counter() - start,
+            to_email,
+            percent,
+            exc,
+        )
 
 @router.post("/upload")
 def upload_file(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    object_key = f"{uuid.uuid4().hex}_{file.filename}"
-    size = minio_service.upload_file(
-        current_user.bucket_name, object_key, file.file, file.content_type
-    )
-    obj = StorageObject(
-        user_id=current_user.id,
-        object_name=file.filename,
-        object_key=object_key,
-        size_bytes=size,
-        content_type=file.content_type
-    )
-    db.add(obj)
-    db.add(UsageLog(user_id=current_user.id, action=ActionType.UPLOAD,
-                    object_key=object_key, bytes_transferred=size))
-    db.commit()
-    # Send upload confirmation email
     try:
-        from app.services.email_service import send_upload_confirmation_email
-        send_upload_confirmation_email(
+        request_start = time.perf_counter()
+        logger.info(
+            "upload_request_received user_id=%s filename=%s content_type=%s",
+            current_user.id,
+            file.filename,
+            file.content_type,
+        )
+
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="File name is required")
+
+        if not current_user.bucket_name:
+            raise HTTPException(status_code=400, detail="User bucket is not configured")
+
+        _log_upload_step("file_validated", request_start, request_start, filename=file.filename)
+
+        object_key = f"{uuid.uuid4().hex}_{file.filename}"
+
+        minio_start = time.perf_counter()
+        size = minio_service.upload_file(
+            current_user.bucket_name,
+            object_key,
+            file.file,
+            file.content_type or "application/octet-stream"
+        )
+        _log_upload_step("file_uploaded_to_minio", request_start, minio_start, object_key=object_key, size_bytes=size)
+
+        db_start = time.perf_counter()
+        obj = StorageObject(
+            user_id=current_user.id,
+            object_name=file.filename,
+            object_key=object_key,
+            size_bytes=size,
+            content_type=file.content_type
+        )
+        db.add(obj)
+        db.add(UsageLog(user_id=current_user.id, action=ActionType.UPLOAD,
+                        object_key=object_key, bytes_transferred=size))
+        db.commit()
+        _log_upload_step("database_saved", request_start, db_start, object_key=object_key)
+
+        analysis_start = time.perf_counter()
+        compression_recommendation = get_compression_recommendation(
+            file.filename,
+            file.content_type or "",
+            size,
+        )
+        _log_upload_step(
+            "ai_compression_analysis",
+            request_start,
+            analysis_start,
+            should_compress=compression_recommendation["should_compress"],
+            savings_percent=compression_recommendation["estimated_savings_percent"],
+        )
+
+        usage_start = time.perf_counter()
+        total_bytes = db.query(func.sum(StorageObject.size_bytes))\
+            .filter(StorageObject.user_id == current_user.id).scalar() or 0
+        limit_bytes = 1 * 1024 * 1024 * 1024
+        percent = (total_bytes / limit_bytes) * 100
+        _log_upload_step("storage_usage_checked", request_start, usage_start, total_bytes=total_bytes, percent=round(percent, 1))
+
+        background_tasks.add_task(
+            _send_upload_confirmation_email_task,
             current_user.email,
             current_user.full_name,
             file.filename,
             size,
-            current_user.bucket_name
+            current_user.bucket_name,
         )
-    except Exception as e:
-        print(f"Upload email error: {e}")
 
-    # Check storage warning (80% of 1GB)
-    try:
-        from sqlalchemy import func
-        total_bytes = db.query(func.sum(StorageObject.size_bytes))\
-            .filter(StorageObject.user_id == current_user.id).scalar() or 0
-        limit_bytes = 1 * 1024 * 1024 * 1024  # 1GB
-        percent = (total_bytes / limit_bytes) * 100
         if percent >= 80:
-            from app.services.email_service import send_storage_warning_email
-            send_storage_warning_email(
+            background_tasks.add_task(
+                _send_storage_warning_email_task,
                 current_user.email,
                 current_user.full_name,
                 total_bytes / (1024**3),
                 1.0,
-                percent
+                percent,
             )
-    except Exception as e:
-        print(f"Storage warning email error: {e}")
-    log_action(db, current_user.id, "FILE_UPLOAD", object_key, f"Uploaded: {file.filename} ({size} bytes)")
-    return {"message": "Uploaded successfully", "object_key": object_key,
-            "filename": file.filename, "size_bytes": size}
+
+        log_action(db, current_user.id, "FILE_UPLOAD", object_key, f"Uploaded: {file.filename} ({size} bytes)")
+        _log_upload_step("response_returned", request_start, time.perf_counter(), object_key=object_key)
+
+        return {
+            "message": "Uploaded successfully",
+            "object_key": object_key,
+            "filename": file.filename,
+            "size_bytes": size,
+            "compression_recommendation": compression_recommendation,
+        }
+    except HTTPException as exc:
+        logger.exception("upload_request_failed http_error=%s", exc.detail)
+        raise
+    except Exception as exc:
+        logger.exception("upload_request_failed error=%s", exc)
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/files")

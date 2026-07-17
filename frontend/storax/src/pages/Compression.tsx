@@ -230,7 +230,7 @@ const Compression: React.FC = () => {
           filename: f.name,
           content_type: f.type,
           size_bytes: f.size,
-        });
+        }, { timeout: 30000 });
 
         analysisData = {
           filename: f.name,
@@ -346,16 +346,18 @@ const Compression: React.FC = () => {
       // Step 1: Upload original file first
       const form = new FormData();
       form.append('file', file);
+      console.info('[StoraX Compression] Uploading compressed source file to backend');
       const uploadRes = await api.post('/api/storage/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
         onUploadProgress: e => setUploadProgress(Math.round((e.loaded * 100) / (e.total || 1)))
       });
       setUploadProgress(100);
+      console.info('[StoraX Compression] Upload response received from backend');
       const objectKey = uploadRes.data.object_key;
 
       // Step 2: Compress the uploaded file
-      const compRes = await api.post(`/api/storage/compress/${objectKey}`);
+      const compRes = await api.post(`/api/storage/compress/${objectKey}`, undefined, { timeout: 180000 });
       clearInterval(interval);
       setProgress(100);
 
@@ -399,12 +401,14 @@ const Compression: React.FC = () => {
     const form = new FormData();
     form.append('file', file);
     try {
+      console.info('[StoraX Compression] Uploading original file to backend');
       await api.post('/api/storage/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
         onUploadProgress: e => setUploadProgress(Math.round((e.loaded * 100) / (e.total || 1)))
       });
       setUploadProgress(100);
+      console.info('[StoraX Compression] Upload response received from backend');
       setStage('done');
       await addAIMessage(`✅ **${file.name}** uploaded successfully to your StoraX bucket!`, 400);
       await addAIMessage('Visit My Files to view and manage all your files.', 400);
