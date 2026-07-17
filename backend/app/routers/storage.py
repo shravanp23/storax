@@ -80,8 +80,8 @@ def _send_storage_warning_email_task(to_email: str, full_name: str, used_gb: flo
 
 @router.post("/upload")
 def upload_file(
-    file: UploadFile = File(...),
     background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
